@@ -27,6 +27,22 @@ firebase.auth().onAuthStateChanged(user => {
 document.getElementById("login").addEventListener("click", function(){
   firebase.auth().signInWithRedirect(google_provider);
 });
+let minPlayers = 4;
+const roles = ["Mafia", "Town", "Doctor", "Detective"];
+const players = [];
+
+class Player {
+  constructor(name, role, isAlive) {
+    this.name = name;
+    this.role = role;
+    this.isAlive = isAlive;
+  }
+
+  get role() {
+    return this.role;
+  }
+
+}
 
 class LobbyGame{
 
@@ -76,11 +92,11 @@ let newGame = {
 };
 
 //addPlayer();
-
+  //append player name to players array, make players = getPlayers(?) from firebase
 //joinGame(); 
 
 //startGame();
-
+  //randomly select roles
 //updateGame(); 
 
 //createGame(); 
