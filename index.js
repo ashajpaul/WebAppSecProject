@@ -12,21 +12,8 @@
   };
   // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
+let gameDB = firebase.database().ref(); //root holds all the game lobbies
 
-var google_provider = new firebase.auth.GoogleAuthProvider();
-
-firebase.auth().onAuthStateChanged(user => {
-  if (!!user){
-    alert(`${user.displayName || user.email}`);
-  }
-  else{
-    alert("Not signed in...");
-  }
-});
-
-document.getElementById("login").addEventListener("click", function(){
-  firebase.auth().signInWithRedirect(google_provider);
-});
 let minPlayers = 4;
 const roles = ["Mafia", "Town", "Doctor", "Detective"];
 const players = [];
@@ -46,14 +33,23 @@ class Player {
 
 class LobbyGame{
 
-  constructor(gameJSON){
-    this.updateJSON(gameJSON);
+  constructor(gameJSON, ref){
+    this.database = ref; 
+    this.$html = $(`<div></div`);
+    this.database.on("value", ss=>{
+      if (!ss.val()){
+        this.$html.html('');
+        this.database.off("value");
+      }
+      this.updateFromJSON(ss.val());
+    });
   }
 
   udpateJSON(gameJSON){
     this.gameID = gameJSON.gameID || Math.floor(Math.random()*1000000000); 
     this.status = gameJSON.status || `Waiting for ${Object.keys(this.players).length}/${this.maxplayers}`; 
     this.players = gameJSON.players || {}; 
+    this.render();
   }
 
   toJSON(){
@@ -64,7 +60,12 @@ class LobbyGame{
     return gameObj; 
   }
 
-  render(){
+  render(){ //Finish this!
+
+    this.$html.html(`
+<div class="lobbygame ${this.creator == userid ? "yours" : ""}">
+    `)
+
     this.$html = 
     $(`
     <div class="lobbygame">
@@ -75,20 +76,32 @@ class LobbyGame{
     `);
     //Add render updates here for HTML
   }
-
 }
 
-let newGame = {
-  "gameID" : "", //UTC Time in seconds? 
-  "minPlayers" : 4,
-  "maxPlayer" : 16, 
-  "status" : "Waiting 1/4",
-  "players" : {
-    "playerId" : {
-      "name" : user.getName(), // Add this in
-      "ready" : false
-    }
+let renderLobby = function(){
+  $("body").html(`<button id="newgame">Click To Make Game</button>`);
+  gameDB.on("child_added", (aGameSnap)=>{
+    let gameJSON = aGameSnap.val();
+    let newGameInstance = new LobbyGame(gameJSON, gameDB.child(aGameSnap.key));
+    $("body").append(newGameInstance.$html);
+  });
+
+  let makeGame = function(gameJSON){
+    let res = {};
+    res.gameID = gameJSON.gameID || Math.floor(Math.random()*1000000000); 
+    res.status = gameJSON.status || `Starting Up!`; 
+    res.players = gameJSON.players || {}; 
+    return res;
   }
+
+  $("#newgame").click(()=>{
+    let newGameref = gameDB.push();
+    let gameObj = makeGame({});
+    gameObj.gameid = newGameref.key;
+    gameObj.players = {};
+    gameObj.players[userid] = userobj;
+    newGameref.set(gameObj);
+  });
 };
 
 //addPlayer();
