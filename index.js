@@ -115,10 +115,18 @@ class LobbyGame {
       });
     } else {
       this.$html.find(".buttons").html(`
+    <input class = "name" type="text" placeholder= "Input your name"></input>
     <button class="join">Join</button>
       `);
       this.$html.find(".join").on("click", ()=>{
-        this.database.child("players").child(userid).set(userobj);
+        let name = this.$html.find(".name").val();
+        if(name == ""){
+          alert("Please enter a name to join a lobby!"); 
+        }
+        else{
+          userobj.username = name; 
+          this.database.child("players").child(userid).set(userobj);
+        }
       });
     }
   }
@@ -290,7 +298,9 @@ let gotoScreen = function(params){ //Renders the go to game button in the lobby
 };
 
 let renderLobby = function(){
-  $("body").html(`<button id="newgame">Click To Make Game</button>`);
+  $("body").html(`<input id = "name" type="text" placeholder= "Input your name"></input>
+                  <button id="newgame">Click To Make Game</button>`);
+  
   mygamesDB.on("child_added", (aGameSnap)=>{
     let gameJSON = aGameSnap.val();
     let newGameInstance = new LobbyGame(gameJSON, mygamesDB.child(aGameSnap.key));
@@ -309,13 +319,21 @@ let renderLobby = function(){
   }
 
   $("#newgame").click(()=>{
-    let newGameref = mygamesDB.push();
-    let gameObj = makeGame({});
-    gameObj.creator = userid;
-    gameObj.gameid = newGameref.key;
-    gameObj.players = {};
-    gameObj.players[userid] = userobj;
-    newGameref.set(gameObj);
+    let name = $("#name").val();
+    if(name == ""){
+          alert("Please enter a name to create a lobby!"); 
+    }
+    else{
+      userobj.username = name; 
+      let newGameref = mygamesDB.push();
+      let gameObj = makeGame({});
+      gameObj.creator = userid;
+      gameObj.title = `${name}-lobby`;
+      gameObj.gameid = newGameref.key;
+      gameObj.players = {};
+      gameObj.players[userid] = userobj;
+      newGameref.set(gameObj);
+    }
   });
 };
 
