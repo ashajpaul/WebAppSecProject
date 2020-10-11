@@ -10,6 +10,7 @@ let minPlayers = 4;
 const roles = ["Mafia", "Town", "Doctor", "Detective"];
 const players = [];
 
+<<<<<<< Updated upstream
 //Player class
 class Player {
   constructor(name, role, isAlive) {
@@ -21,6 +22,61 @@ class Player {
   get role() {
     return this.role;
   }
+=======
+let assignRoles = function (playerList, params){
+  let randomRoles = []; 
+  let roleCount = (playerList.length / 4) + 2;
+  let mafiaCount = Math.floor(playerList.length / 4);
+  let playerLength = playerList.length; 
+  for (i = 0; i < roleCount; i++) {
+    let randomNum = Math.floor(Math.random() * (playerList.length));
+    if(randomRoles.includes(randomNum)){
+      i--;
+    }
+    else{
+      randomRoles.push(randomNum);
+    }
+  }
+  //console.log(randomRoles);
+  mygamesDB.off(); //Keep this in mind
+  let lobbyDB = params.lobbyDB;
+  let gameid = params.gameid;
+  let gameDB = firebase.database().ref("games").child(gameid);
+  let refPlayerList = firebase.database().ref(`games/${gameid}/players`);
+  let playerJSON = null;
+  refPlayerList.on("value", function(ss){
+    let snapshot = ss.val();
+    //console.log(snapshot);
+    let i = 0;
+    let mafiaCounter = 0;
+    let isDoc = false; 
+    let isDec = false;
+    for (var key in snapshot) {
+      if (snapshot.hasOwnProperty(key) && randomRoles.includes(i)) {
+        //console.log(i);
+        if(mafiaCounter < mafiaCount){
+          snapshot[key].role = "mafia";
+          mafiaCounter++;
+        }
+        else if(!isDoc){
+          snapshot[key].role = "doctor";
+          isDoc = true;
+        }
+        else if(!isDec){
+          snapshot[key].role = "detective";
+          isDec = true;
+        }
+      }
+      i++;
+     }
+    playerJSON = snapshot;
+});
+  refPlayerList.set(playerJSON);
+}
+
+let createGame = function (playerList, params){
+  assignRoles(playerList, params);
+>>>>>>> Stashed changes
 }
 
 // Your web app's Firebase configuration
@@ -271,6 +327,63 @@ let gotoScreen = function(params){ //Renders the go to game button in the lobby
   mygamesDB.off();
   let lobbyDB = params.lobbyDB;
   let gameid = params.gameid;
+<<<<<<< Updated upstream
+=======
+  let gameDB = firebase.database().ref("games").child(gameid);
+  let refPlayerList = firebase.database().ref(`games/${gameid}/players`);
+  let playerList = [];
+  refPlayerList.on("value", function(ss){
+    let snapshot = ss.val();
+    //console.log(snapshot);
+    for (var key in snapshot) {
+      if (snapshot.hasOwnProperty(key)) {
+        var val = snapshot[key].username;
+        playerList.push(val);
+        }
+      }
+     });
+  $("body").html(`
+<h1>Welcome to Mafia</h1>
+<p id="gameRules"><\p>
+<p id="status"><\p>
+<p id="playerList"><\p>
+<button id="startGame">Start Game</button>
+`);
+  
+  $("#gameRules").html(`Game Rules <a href="https://www.kqed.org/pop/10178/how-to-play-mafia-an-in-depth-guide-to-the-perfect-holiday-game" target="_blank">here</a>`); 
+  $("status").text()
+  $("#playerList").text(`Player List: ${playerList.toString()}`);
+  //MAKE SURE TO MAKE START GAME ONLY FOR HOST... 
+  $(document).ready(function() {
+    $("#startGame").click(function(){
+        createGame(playerList, params);
+    }); 
+  });
+  /*
+  let gameDB = firebase.database().ref("activegames").child(gameid);
+  lobbyDB.child('players').child(userid).child('ready').on('value', (ss)=>{
+    let readyState = ss.val();
+    console.log(readyState);
+    if (!readyState){
+      lobbyDB.child('status').off();
+      renderTeamChooser(lobbyDB, gameDB, $("#gamescreen"));
+    } else {
+      lobbyDB.child('status').on('value', ss=>{
+        let status = ss.val();
+        if (status.substring(0,5) == "Ready"){
+          renderActiveGame(gameDB, $("#gamescreen"));
+        } else {
+          renderWaitingScreen(gameDB, $("#gamescreen"), status, lobbyDB);
+        }
+      });
+    }
+  });
+  */
+  /*
+  mygamesDB.off();
+  let lobbyDB = params.lobbyDB;
+  let gameid = params.gameid;
+>>>>>>> Stashed changes
   $("body").html(`
 <button id="backtolobby">Back to Lobby</button>
 <div id="gamescreen">
