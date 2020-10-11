@@ -3,26 +3,13 @@ if (!userid){
   uuid = `userid-${Math.floor(1000000000*Math.random())}`;
   localStorage.setItem("userid", uuid);
 }
-let userobj = {"username":"Anonymous","ready":false};
+let userobj = {"username":"Anonymous","role":"town","isAlive":true};
 
 //Game Logic
 let minPlayers = 4;
-const roles = ["Mafia", "Town", "Doctor", "Detective"];
-const players = [];
+const roles = ["mafia", "doctor", "detective"];
+let players = [];
 
-<<<<<<< Updated upstream
-//Player class
-class Player {
-  constructor(name, role, isAlive) {
-    this.name = name;
-    this.role = role;
-    this.isAlive = isAlive;
-  }
-
-  get role() {
-    return this.role;
-  }
-=======
 let assignRoles = function (playerList, params){
   let randomRoles = []; 
   let roleCount = (playerList.length / 4) + 2;
@@ -76,7 +63,6 @@ let assignRoles = function (playerList, params){
 
 let createGame = function (playerList, params){
   assignRoles(playerList, params);
->>>>>>> Stashed changes
 }
 
 // Your web app's Firebase configuration
@@ -327,8 +313,6 @@ let gotoScreen = function(params){ //Renders the go to game button in the lobby
   mygamesDB.off();
   let lobbyDB = params.lobbyDB;
   let gameid = params.gameid;
-<<<<<<< Updated upstream
-=======
   let gameDB = firebase.database().ref("games").child(gameid);
   let refPlayerList = firebase.database().ref(`games/${gameid}/players`);
   let playerList = [];
@@ -383,7 +367,6 @@ let gotoScreen = function(params){ //Renders the go to game button in the lobby
   mygamesDB.off();
   let lobbyDB = params.lobbyDB;
   let gameid = params.gameid;
->>>>>>> Stashed changes
   $("body").html(`
 <button id="backtolobby">Back to Lobby</button>
 <div id="gamescreen">
@@ -408,10 +391,13 @@ let gotoScreen = function(params){ //Renders the go to game button in the lobby
       });
     }
   });
+  */
 };
 
 let renderLobby = function(){
-  $("body").html(`<input id = "name" type="text" placeholder= "Input your name"></input>
+  $("body").html(`<h1>Virtual Mafia</h1>
+                  <p>Please make sure everyone joins the game before hitting 'Go To Game'<\p>
+                  <input id = "name" type="text" placeholder= "Input your name"></input>
                   <button id="newgame">Click To Make Game</button>`);
   
   mygamesDB.on("child_added", (aGameSnap)=>{
