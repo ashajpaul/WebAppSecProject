@@ -85,18 +85,18 @@ let statusUpdate = function(playerRef){
     if(players[useridKey].role == "godfather"){
       let target = players[useridKey].target;
       for(var useridKey1 in players){
-        if(players[useridKey].username == target){
-          players[useridKey].isAlive = false;
-          players[useridKey].target = "";
+        if(players[useridKey1].username == target){
+          players[useridKey1].isAlive = false;
+          players[useridKey1].target = "";
         }
       }
     }
     else if(players[useridKey].role == "doctor"){
       let target = players[useridKey].target;
       for(var useridKey1 in players){
-        if(players[useridKey].username == target){
-          players[useridKey].isAlive = true;
-          players[useridKey].target = "";
+        if(players[useridKey1].username == target){
+          players[useridKey1].isAlive = true;
+          players[useridKey1].target = "";
         }
       } 
     }
@@ -113,6 +113,7 @@ let statusUpdate = function(playerRef){
   if(players[userid].role == "detective"){
       alert(mafiaDetection);
     }
+  //console.log(players);
   playerRef.set(players);
 }
 
@@ -280,6 +281,7 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
         isWaiting = true;
       }
       if(!isWaiting){
+        //console.log(allPlayers);
         switchToDay(params);
       }
       else{
