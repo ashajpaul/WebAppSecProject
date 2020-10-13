@@ -87,6 +87,7 @@ let statusUpdate = function(playerRef){
       for(var useridKey1 in players){
         if(players[useridKey].username == target){
           players[useridKey].isAlive = false;
+          players[useridKey].target = "";
         }
       }
     }
@@ -95,13 +96,14 @@ let statusUpdate = function(playerRef){
       for(var useridKey1 in players){
         if(players[useridKey].username == target){
           players[useridKey].isAlive = true;
+          players[useridKey].target = "";
         }
       } 
     }
     else if(players[useridKey].role == "detective"){
       let target = players[useridKey].target;
       for(var useridKey1 in players){
-        if(players[useridKey].username == target && (players[useridKey].role == "mafia" || players[useridKey].role == "godfather")){
+        if(players[useridKey1].username == target && (players[useridKey1].role == "mafia" || players[useridKey1].role == "godfather")){
           mafiaDetection = `${players[useridKey].username} is part of the mafia!`;
         }
       }
@@ -159,13 +161,6 @@ let townWinChecker = function(playerRef){
   return isWon;
 }
 
-let renderDay = function(params){
-  //Voting for someone to kill
-  let gameid = params.gameid;
-  let playerRef = firebase.database().ref(`games/${gameid}/players`);
-  votingSystem(getPlayersJSON(playerRef), false, playerRef, params);
-}
-
 let switchToDay = function(params){
   let gameid = params.gameid;
   let playerRef = firebase.database().ref(`games/${gameid}/players`);
@@ -189,8 +184,47 @@ let switchToDay = function(params){
       }
     }
     $("body").append(`<p>The players who are dead: ${deadList}</p>`);
-    //renderDay(params);
-    console.log("render day now?");
+    //console.log("render day now?");
+    renderDay(params);
+  }
+}
+
+let switchToNight = function(params){
+  let gameid = params.gameid;
+  let playerRef = firebase.database().ref(`games/${gameid}/players`);
+  playerRef.off(); //Turns off call back from voting system
+  statusUpdate(playerRef); //Change this for the daytime version 
+  let players = getPlayersJSON(playerRef);
+  $("body").empty(); //Clears screen
+  if(townWinChecker(playerRef)){
+    $("body").html(`<h1>Town Wins!</h1>`);
+  }
+  else if(mafiaWinChecker(playerRef)){
+    $("body").html(`<h1>Mafia Wins!</h1>`);
+  }
+  else{
+    $("body").html(`<h1>The game continues...</h1>`);
+    //Show who's dead and show who's alive
+    let deadList = []
+    for(var useridKey in players){
+      if(!players[useridKey].isAlive){
+        deadList.push(players[useridKey].username);
+      }
+    }
+    $("body").append(`<p>The players who are dead: ${deadList}</p>`);
+    renderNight(params);
+	}
+}
+
+let voteTally = function(playerJSON){
+  let alivePlayers = {};
+  for(var useridKey2 in playerJSON){
+    if(playerJSON[useridKey2].isAlive){
+      alivePlayers[playerJSON[useridKey2].username] = 0; //Fills in dictionary with usernames with a tally of 0
+    }
+  }
+  for(var useridKey1 in playerJSON){
+    //if in dictionary, add +1 to value of username
   }
 }
 
@@ -205,7 +239,7 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
     }
   }
   if(isNight){
-    if(playerJSON[userid].role != 'townsperson'){
+    if(playerJSON[userid].role != 'townsperson' && playerJSON[userid].isAlive){
       for(var person1 of aliveList){
         htmlBuilder = htmlBuilder + `<option value=${person1}>${person1}</option>\n`;
       }
@@ -229,9 +263,9 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
       let activePlayers = [];
       let readyPlayers = 0;
       for(var useridKey in allPlayers){
-        if(allPlayers[useridKey].role == 'godfather' || allPlayers[useridKey].role == 'detective' || allPlayers[useridKey].role == 'doctor'){
+        if((allPlayers[useridKey].role == 'godfather' || allPlayers[useridKey].role == 'detective' || allPlayers[useridKey].role == 'doctor') && allPlayers[useridKey].isAlive){
           activePlayers.push(allPlayers[useridKey]);
-          if(allPlayers[useridKey].target != "dummyCase!" && (allPlayers[useridKey].role == 'mafia' || allPlayers[useridKey].role == 'townsperson')){
+          if(allPlayers[useridKey].target != "dummyCase!" && (allPlayers[useridKey].role == 'mafia' || allPlayers[useridKey].role == 'townsperson') && allPlayers[useridKey].isAlive){
             readyPlayers++;
           }
           else if(allPlayers[useridKey].target != ""){
@@ -254,7 +288,7 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
     });
   }
   else{
-    htmlBuilder = `<h1>The town must vote for an execution...</h1>\n<select id="playerNames">\n`
+    htmlBuilder = `<h1>The town must vote for an execution...</h1>\n<select id="playerNames">\n`;
     for(var person2 of aliveList){
         htmlBuilder = htmlBuilder + `<option value=${person2}>${person2}</option>\n`;
       }
@@ -281,13 +315,15 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
         }
       }
       if(readyPlayers == activePlayers.length){
+        //Need to talley votes and then execute the person
+        voteTalley(allPlayers);
         isWaiting = false;
       }
       else{
         isWaiting = true;
       }
       if(!isWaiting){
-        switchToDay(params);
+        switchToNight(params);
       }
       else{
         $("body").append(`<p>Waiting for everyone to cast their votes...</p>`);
@@ -314,10 +350,20 @@ let displayRoles = function(params){
   }
 }
 
-let getMafia = function(putSomethingUsefulHere){
-}
-
-let findMafia = function(putSomethingUsefulHere){
+let renderDay = function(params){
+  //Voting for someone to kill
+  let gameid = params.gameid;
+  let playerRef = firebase.database().ref(`games/${gameid}/players`);
+  let playerJSON = getPlayersJSON(playerRef); 
+  let playerRole = playerJSON[userid].role;
+  let playerAlive = playerJSON[userid].isAlive;
+  if(playerAlive){
+    $("body").append(`<p><b>Action: </b>Pick a person who you think is the mafia, and they shall be executed:</p>`);
+    votingSystem(playerJSON, false, playerRef, params);
+  }
+  else{
+    $("body").append(`<p><b>You're dead! </b>:(</p>`);
+  }
 }
 
 let renderNight = function(params){
@@ -325,31 +371,31 @@ let renderNight = function(params){
   let playerRef = firebase.database().ref(`games/${gameid}/players`);
   let playerJSON = getPlayersJSON(playerRef);
   let playerRole = playerJSON[userid].role;
-  if(playerRole == "townsperson"){
+  let playerAlive = playerJSON[userid].isAlive;
+  if(playerRole == "townsperson" && playerAlive){
     $("body").append(`<p><b>Action: </b>You can't do anything... You're sleeping through the night with no worries in the world!</p>`);
     votingSystem(playerJSON, true, playerRef, params);
   }
-  else if(playerRole == "doctor"){
+  else if(playerRole == "doctor" && playerAlive){
     $("body").append(`<p><b>Action: </b>Pick a person to save from the dropdown below: </p>`);
     votingSystem(playerJSON, true, playerRef, params);
   }
-  else if(playerRole == "detective"){
+  else if(playerRole == "detective" && playerAlive){
     $("body").append(`<p><b>Action: </b>Pick a person to study from the dropdown below: </p>`);
     votingSystem(playerJSON, true, playerRef, params);
   }
-  else if(playerRole == "godfather"){
+  else if(playerRole == "godfather" && playerAlive){
     $("body").append(`<p><b>Action: </b>Pick a person to kill from the dropdown below: </p>`);
     votingSystem(playerJSON, true, playerRef, params);
   }
-  else if(playerRole == "mafia"){
+  else if(playerRole == "mafia" && playerAlive){
     $("body").append(`<p><b>Action: </b>Talk to your fellow mafia members on who to kill. Only the godfather can select who's killed.</p>`);
     votingSystem(playerJSON, true, playerRef, params);
   }
+  else{
+    $("body").append(`<p><b>You're dead! </b>:(</p>`);
+  }
 }
-
-let waitingRoom = function(putSomethingUsefulHere){
-}
-
 
 //Main Game logic here
 let createGame = function(params){
