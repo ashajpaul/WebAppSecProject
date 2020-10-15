@@ -78,43 +78,51 @@ let targetUpdate = function(playerJSON, playerRef){
   playerRef.child(userid).update({target : playerJSON[userid].target});
 }
 
-let statusUpdate = function(playerRef){
+let statusUpdate = function(playerRef, isNight){
   let players = getPlayersJSON(playerRef); 
   let mafiaDetection = `They are not part of the mafia!`
-  for(var useridKey in players){
-    if(players[useridKey].role == "godfather"){
-      let target = players[useridKey].target;
-      for(var useridKey1 in players){
-        if(players[useridKey1].username == target){
-          players[useridKey1].isAlive = false;
+  if(isNight){
+    for(var useridKey in players){
+      if(players[useridKey].role == "godfather"){
+        let target = players[useridKey].target;
+        for(var useridKey1 in players){
+          if(players[useridKey1].username == target){
+            players[useridKey1].isAlive = false;
+            players[useridKey1].target = "";
+          }
+        }
+      }
+      else if(players[useridKey].role == "doctor"){
+        let target = players[useridKey].target;
+        for(var useridKey1 in players){
+          if(players[useridKey1].username == target){
+            players[useridKey1].isAlive = true;
+            players[useridKey1].target = "";
+          }
+        } 
+      }
+      else if(players[useridKey].role == "detective"){
+        let target = players[useridKey].target;
+        for(var useridKey1 in players){
+          if(players[useridKey1].username == target && (players[useridKey1].role == "mafia" || players[useridKey1].role == "godfather")){
+            mafiaDetection = `${players[useridKey1].username} is part of the mafia!`;
+          }
           players[useridKey1].target = "";
         }
       }
     }
-    else if(players[useridKey].role == "doctor"){
-      let target = players[useridKey].target;
-      for(var useridKey1 in players){
-        if(players[useridKey1].username == target){
-          players[useridKey1].isAlive = true;
-          players[useridKey1].target = "";
-        }
-      } 
+    //console.log(players);
+    if(players[userid].role == "detective"){
+        alert(mafiaDetection);
     }
-    else if(players[useridKey].role == "detective"){
-      let target = players[useridKey].target;
-      for(var useridKey1 in players){
-        if(players[useridKey1].username == target && (players[useridKey1].role == "mafia" || players[useridKey1].role == "godfather")){
-          mafiaDetection = `${players[useridKey].username} is part of the mafia!`;
-        }
-      }
-    }
+    playerRef.set(players);
   }
-  console.log(players);
-  if(players[userid].role == "detective"){
-      alert(mafiaDetection);
+  else{
+    for (var useridKey in players){
+      players[useridKey].target = "";
     }
-  //console.log(players);
-  playerRef.set(players);
+    playerRef.set(players);
+  }
 }
 
 let mafiaWinChecker = function(playerRef){ //Finish this!
@@ -148,8 +156,17 @@ let townWinChecker = function(playerRef){
     let players = ss.val();
     let mafiaCounter = 0;
     for(var useridKey in players){
-      if(players[useridKey].role == "mafia" || players[useridKey].role == "godfather"){
+      if((players[useridKey].role == "mafia" || players[useridKey].role == "godfather")&&players[useridKey].isAlive==true){
         mafiaCounter++;
+      }
+      if(players[useridKey].role == "godfather" && players[useridKey].isAlive==false){
+        for(var useridKey2 in players){
+          if(players[useridKey2].role == "mafia" && players[useridKey2].isAlive==true){
+            
+              playerRef.child(useridKey2).update({role : "godfather"});
+  
+          }
+        }
       }
     }
     if(mafiaCounter == 0){
@@ -166,7 +183,7 @@ let switchToDay = function(params){
   let gameid = params.gameid;
   let playerRef = firebase.database().ref(`games/${gameid}/players`);
   playerRef.off(); //Turns off call back from voting system
-  statusUpdate(playerRef);
+  statusUpdate(playerRef, true);
   let players = getPlayersJSON(playerRef);
   $("body").empty(); //Clears screen
   if(townWinChecker(playerRef)){
@@ -194,7 +211,7 @@ let switchToNight = function(params){
   let gameid = params.gameid;
   let playerRef = firebase.database().ref(`games/${gameid}/players`);
   playerRef.off(); //Turns off call back from voting system
-  statusUpdate(playerRef); //Change this for the daytime version 
+  statusUpdate(playerRef, false); //Change this for the daytime version 
   let players = getPlayersJSON(playerRef);
   $("body").empty(); //Clears screen
   if(townWinChecker(playerRef)){
@@ -217,19 +234,65 @@ let switchToNight = function(params){
 	}
 }
 
-let voteTally = function(playerJSON){
+let voteTally = function(playerJSON, params){
+  console.log("voteTally Count");
+  let gameid = params.gameid;
+  let playerRef = firebase.database().ref(`games/${gameid}/players`);
   let alivePlayers = {};
   for(var useridKey2 in playerJSON){
     if(playerJSON[useridKey2].isAlive){
-      alivePlayers[playerJSON[useridKey2].username] = 0; //Fills in dictionary with usernames with a tally of 0
+      alivePlayers[playerJSON[useridKey2].username] = 0;
     }
   }
+
   for(var useridKey1 in playerJSON){
-    //if in dictionary, add +1 to value of username
+    let target = playerJSON[useridKey1].target;
+    for (var useridKey3 in playerJSON){
+      if (playerJSON[useridKey3].username == target){
+      alivePlayers[playerJSON[useridKey3].username] += 1;
+      }
+    }
+  }
+  let sorted = Object.keys(alivePlayers).map(function(key) {
+    return [key, alivePlayers[key]];
+  });
+  
+  sortOnKeys(sorted);
+      
+  if (sorted[0][1] != sorted[1][1]){
+    for(var useridKey4 in playerJSON){
+      if (playerJSON[useridKey4].username == sorted[0][0]){
+        playerJSON[useridKey4].isAlive = false;
+        playerRef.set(playerJSON);
+        alert(`You voted off ${playerJSON[useridKey4].username}`);
+        //console.log("in voteTally" + JSON.stringify(playerJSON));
+        break;
+      }
+      else {
+        alert(`The town did not come to a consensus, and no one was voted off`);
+        break;
+      }
+      break;
+    }
   }
 }
 
+let sortOnKeys = function(dict){
+   var sorted = [];
+   for(var key in dict) {
+      sorted[sorted.length] = key;
+   }
+   sorted.sort();
+
+   var tempDict = {};
+   for(var i = 0; i < sorted.length; i++) {
+      tempDict[sorted[i]] = dict[sorted[i]];
+   }
+   return tempDict;
+}
+ 
 let votingSystem = function(playerJSON, isNight, playerRef, params){
+  playerJSON = getPlayersJSON(playerRef);
   let htmlBuilder = `<select id="playerNames">\n`;
   let playerList = [];
   let aliveList = [];
@@ -240,7 +303,9 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
     }
   }
   if(isNight){
-    if(playerJSON[userid].role != 'townsperson' && playerJSON[userid].isAlive){
+    //resetTargets(params);
+    console.log("after night reset\n" + JSON.stringify(playerJSON));
+    if((playerJSON[userid].role != 'townsperson' && playerJSON[userid].role != 'mafia') && playerJSON[userid].isAlive){
       for(var person1 of aliveList){
         htmlBuilder = htmlBuilder + `<option value=${person1}>${person1}</option>\n`;
       }
@@ -260,6 +325,7 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
     }
     playerRef.on("value", function(ss){
       let allPlayers = ss.val();
+      console.log("319 allPlayers" + JSON.stringify(allPlayers));
       let isWaiting = true;
       let activePlayers = [];
       let readyPlayers = 0;
@@ -281,7 +347,6 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
         isWaiting = true;
       }
       if(!isWaiting){
-        //console.log(allPlayers);
         switchToDay(params);
       }
       else{
@@ -290,6 +355,8 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
     });
   }
   else{
+    //resetTargets(params);
+    console.log("after day reset\n" + JSON.stringify(playerJSON));
     htmlBuilder = `<h1>The town must vote for an execution...</h1>\n<select id="playerNames">\n`;
     for(var person2 of aliveList){
         htmlBuilder = htmlBuilder + `<option value=${person2}>${person2}</option>\n`;
@@ -318,7 +385,7 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
       }
       if(readyPlayers == activePlayers.length){
         //Need to talley votes and then execute the person
-        voteTalley(allPlayers);
+        voteTally(allPlayers, params);
         isWaiting = false;
       }
       else{
@@ -333,6 +400,17 @@ let votingSystem = function(playerJSON, isNight, playerRef, params){
     });
   }
 }
+
+/*let resetTargets = function(params){
+  let gameid = params.gameid;
+  let playerRef = firebase.database().ref(`games/${gameid}/players`);
+  let playerJSON = getPlayersJSON(playerRef);
+  for (var useridKey in playerJSON){
+    playerJSON[useridKey].target = "";
+  }
+  playerRef.set(playerJSON);
+  console.log("in reset targets\n" + JSON.stringify(playerJSON));
+}*/
 
 //Specifc Game Parts are here
 let displayRoles = function(params){
@@ -555,7 +633,7 @@ let renderLobby = function(){
     res.title = gameJSON.title || `New Game ${res.created}`;
     res.gameid = gameJSON.gameid || `Game-${Math.floor(Math.random()*1000000000)}`;
     res.players = gameJSON.players || false;
-    res.status = gameJSON.status || `Starting Up`;
+    res.f = gameJSON.status || `Starting Up`;
     return res;
   }
   
